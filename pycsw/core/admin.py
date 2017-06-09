@@ -42,7 +42,6 @@ from pycsw.core.etree import PARSER
 LOGGER = logging.getLogger(__name__)
 
 
-
 def setup_db(database, table, home, create_sfsql_tables=True, create_plpythonu_functions=True, postgis_geometry_column='wkb_geometry', extra_columns=[], language='english'):
     """Setup database tables and indexes"""
     from sqlalchemy import Column, create_engine, Integer, MetaData, \
@@ -69,9 +68,10 @@ def setup_db(database, table, home, create_sfsql_tables=True, create_plpythonu_f
             dbsession = create_session(dbase)
             for row in dbsession.execute('select(postgis_lib_version())'):
                 postgis_lib_version = row[0]
-            create_sfsql_tables=False
+            create_sfsql_tables = False
             create_postgis_geometry = True
-            LOGGER.info('PostGIS %s detected: Skipping SFSQL tables creation', postgis_lib_version)
+            LOGGER.info(
+                'PostGIS %s detected: Skipping SFSQL tables creation', postgis_lib_version)
         except:
             pass
 
@@ -87,7 +87,8 @@ def setup_db(database, table, home, create_sfsql_tables=True, create_plpythonu_f
         srs.create()
 
         i = srs.insert()
-        i.execute(srid=4326, auth_name='EPSG', auth_srid=4326, srtext='GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.01745329251994328,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4326"]]')
+        i.execute(srid=4326, auth_name='EPSG', auth_srid=4326,
+                  srtext='GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"]],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",0.01745329251994328,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG","4326"]]')
 
         LOGGER.info('Creating table geometry_columns')
         geom = Table(
@@ -200,6 +201,8 @@ def setup_db(database, table, home, create_sfsql_tables=True, create_plpythonu_f
     if extra_columns:
         LOGGER.info('Extra column definitions detected')
         for extra_column in extra_columns:
+            if extra_column == '':
+                continue
             LOGGER.info('Adding extra column: %s', extra_column)
             records.append_column(extra_column)
 
@@ -273,17 +276,21 @@ def setup_db(database, table, home, create_sfsql_tables=True, create_plpythonu_f
         conn.execute(tsvector_fts)
         index_fts = "create index fts_gin_idx on %s using gin(anytext_tsvector)" % table_name
         conn.execute(index_fts)
-        # This needs to run if records exist "UPDATE records SET anytext_tsvector = to_tsvector('english', anytext)"
-        trigger_fts = "create trigger ftsupdate before insert or update on %s for each row execute procedure tsvector_update_trigger('anytext_tsvector', 'pg_catalog.%s', 'anytext')" % (table_name, language)
+        # This needs to run if records exist "UPDATE records SET
+        # anytext_tsvector = to_tsvector('english', anytext)"
+        trigger_fts = "create trigger ftsupdate before insert or update on %s for each row execute procedure tsvector_update_trigger('anytext_tsvector', 'pg_catalog.%s', 'anytext')" % (
+            table_name, language)
         conn.execute(trigger_fts)
 
     if dbase.name == 'postgresql' and create_postgis_geometry:
         # create native geometry column within db
         LOGGER.info('Creating native PostGIS geometry column')
         if postgis_lib_version < '2':
-            create_column_sql = "SELECT AddGeometryColumn('%s', '%s', 4326, 'POLYGON', 2)" % (table_name, postgis_geometry_column)
+            create_column_sql = "SELECT AddGeometryColumn('%s', '%s', 4326, 'POLYGON', 2)" % (
+                table_name, postgis_geometry_column)
         else:
-            create_column_sql = "ALTER TABLE %s ADD COLUMN %s geometry(Geometry,4326);" % (table_name, postgis_geometry_column)
+            create_column_sql = "ALTER TABLE %s ADD COLUMN %s geometry(Geometry,4326);" % (
+                table_name, postgis_geometry_column)
         create_insert_update_trigger_sql = '''
 DROP TRIGGER IF EXISTS %(table)s_update_geometry ON %(table)s;
 DROP FUNCTION IF EXISTS %(table)s_update_geometry();
@@ -302,11 +309,12 @@ FOR EACH ROW EXECUTE PROCEDURE %(table)s_update_geometry();
     ''' % {'table': table_name, 'geometry': postgis_geometry_column}
 
         create_spatial_index_sql = 'CREATE INDEX %(geometry)s_idx ON %(table)s USING GIST (%(geometry)s);' \
-        % {'table': table_name, 'geometry': postgis_geometry_column}
+            % {'table': table_name, 'geometry': postgis_geometry_column}
 
         conn.execute(create_column_sql)
         conn.execute(create_insert_update_trigger_sql)
         conn.execute(create_spatial_index_sql)
+
 
 def load_records(context, database, table, xml_dirpath, recursive=False, force_update=False):
     """Load metadata records from directory of files to database"""
@@ -414,7 +422,8 @@ def refresh_harvested_records(context, database, table, url):
     repos = repository.Repository(database, context, table=table)
 
     # get all harvested records
-    count, records = repos.query(constraint={'where': 'mdsource != "local"', 'values': []})
+    count, records = repos.query(
+        constraint={'where': 'mdsource != "local"', 'values': []})
 
     if int(count) > 0:
         LOGGER.info('Refreshing %s harvested records', count)
@@ -496,7 +505,7 @@ def gen_sitemap(context, database, table, url, output_file):
     LOGGER.info('Writing to %s', output_file)
     with open(output_file, 'w') as ofile:
         ofile.write(etree.tostring(urlset, pretty_print=1,
-                    encoding='utf8', xml_declaration=1))
+                                   encoding='utf8', xml_declaration=1))
 
 
 def post_xml(url, xml, timeout=30):

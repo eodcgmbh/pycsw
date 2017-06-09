@@ -150,6 +150,7 @@ EXAMPLES
 
 '''
 
+
 COMMAND = None
 XML_DIRPATH = None
 CFG = None
@@ -227,6 +228,23 @@ if COMMAND not in ['post_xml', 'get_sysprof', 'validate_xml']:
         SCP.readfp(f)
 
     DATABASE = SCP.get('repository', 'database')
+
+    EXTRA_COLUMNS = []
+
+    try:
+        extra_columns = SCP.get('repository', 'extra_columns').split(",")
+    except configparser.NoOptionError:
+        extra_columns = None
+
+    if extra_columns is not None:
+
+        from sqlalchemy import Column, Text
+
+        for extra_column in extra_columns:
+            if extra_column == '':
+                continue
+            EXTRA_COLUMNS.append(Column(extra_column, Text, index=True))
+
     URL = SCP.get('server', 'url')
     HOME = SCP.get('server', 'home')
     METADATA = dict(SCP.items('metadata:main'))
@@ -252,13 +270,14 @@ elif COMMAND == 'validate_xml':
 
 if COMMAND == 'setup_db':
     try:
-        admin.setup_db(DATABASE, TABLE, HOME)
+        admin.setup_db(DATABASE, TABLE, HOME, extra_columns=EXTRA_COLUMNS)
     except Exception as err:
         print(err)
         print('ERROR: DB creation error.  Database tables already exist')
         print('Delete tables or database to reinitialize')
 elif COMMAND == 'load_records':
-    admin.load_records(CONTEXT, DATABASE, TABLE, XML_DIRPATH, RECURSIVE, FORCE_CONFIRM)
+    admin.load_records(CONTEXT, DATABASE, TABLE,
+                       XML_DIRPATH, RECURSIVE, FORCE_CONFIRM)
 elif COMMAND == 'export_records':
     admin.export_records(CONTEXT, DATABASE, TABLE, XML_DIRPATH)
 elif COMMAND == 'rebuild_db_indexes':
