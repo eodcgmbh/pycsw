@@ -36,10 +36,13 @@ import datetime
 import logging
 import time
 
+import six
 from six.moves.urllib.request import Request, urlopen
 from six.moves.urllib.parse import urlparse
 from shapely.wkt import loads
 from owslib.util import http_post
+
+from pycsw.core.etree import etree, PARSER
 
 LOGGER = logging.getLogger(__name__)
 
@@ -154,6 +157,14 @@ def nspath_eval(xpath, nsmap):
     return '/'.join(out)
 
 
+def wktenvelope2bbox(envelope):
+    """returns bbox string of WKT ENVELOPE definition"""
+
+    tmparr = [x.strip() for x in envelope.split('(')[1].split(')')[0].split(',')]
+    bbox = '%s,%s,%s,%s' % (tmparr[0], tmparr[3], tmparr[1], tmparr[2])
+    return bbox
+
+
 def wkt2geom(ewkt, bounds=True):
     """Return Shapely geometry object based on WKT/EWKT
 
@@ -179,6 +190,8 @@ def wkt2geom(ewkt, bounds=True):
     """
 
     wkt = ewkt.split(";")[-1] if ewkt.find("SRID") != -1 else ewkt
+    if wkt.startswith('ENVELOPE'):
+        wkt = bbox2wktpolygon(wktenvelope2bbox(wkt))
     geometry = loads(wkt)
     return geometry.envelope.bounds if bounds else geometry
 
@@ -198,6 +211,8 @@ def bbox2wktpolygon(bbox):
 
     """
 
+    if bbox.startswith('ENVELOPE'):
+        bbox = wktenvelope2bbox(bbox)
     minx, miny, maxx, maxy = [float(coord) for coord in bbox.split(",")]
     return 'POLYGON((%.2f %.2f, %.2f %.2f, %.2f %.2f, %.2f %.2f, %.2f %.2f))' \
         % (minx, miny, minx, maxy, maxx, maxy, maxx, miny, minx, miny)
@@ -307,3 +322,19 @@ def ipaddress_in_whitelist(ipaddress, whitelist):
                     if ipaddress.startswith(white.split('*')[0]):
                         return True
     return False
+
+
+def get_anytext(bag):
+    """
+    generate bag of text for free text searches
+    accepts list of words, string of XML, or etree.Element
+    """
+
+    if isinstance(bag, list):  # list of words
+        return ' '.join([_f for _f in bag if _f]).strip()
+    else:  # xml
+        if isinstance(bag, six.binary_type) or isinstance(bag, six.text_type):
+            # serialize to lxml
+            bag = etree.fromstring(bag, PARSER)
+        # get all XML element content
+        return ' '.join([value.strip() for value in bag.xpath('//text()')])

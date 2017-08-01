@@ -116,11 +116,10 @@ class Csw(object):
                     with codecs.open(rtconfig, encoding='utf-8') as scp:
                         self.config.readfp(scp)
         except Exception as err:
-            LOGGER.exception('Could not load user configuration: %s', err)
+            msg = 'Could not load configuration'
+            LOGGER.exception('%s %s: %s', msg, rtconfig, err)
             self.response = self.iface.exceptionreport(
-                'NoApplicableCode', 'service',
-                'Error opening configuration %s' % rtconfig
-            )
+                'NoApplicableCode', 'service', msg)
             return
 
         # set server.home safely
@@ -774,7 +773,11 @@ class Csw(object):
         if self.config.get('manager', 'transactions') != 'true':
             raise RuntimeError('CSW-T interface is disabled')
 
-        ipaddress = self.environ['REMOTE_ADDR']
+        """ get the client first forwarded ip """
+        if 'HTTP_X_FORWARDED_FOR' in self.environ:
+            ipaddress = self.environ['HTTP_X_FORWARDED_FOR'].split(',')[0].strip()
+        else:
+            ipaddress = self.environ['REMOTE_ADDR']
 
         if not self.config.has_option('manager', 'allowed_ips') or \
         (self.config.has_option('manager', 'allowed_ips') and not
