@@ -48,6 +48,8 @@ from pycsw.core import util
 from pycsw.core.etree import etree
 from pycsw.core.etree import PARSER
 
+from eomdbmodel.model import Dataset
+
 LOGGER = logging.getLogger(__name__)
 
 
@@ -119,6 +121,8 @@ class Repository(object):
                 },
             }
         )
+
+        self.dataset = Dataset
 
         self.dbtype = self.engine.name
 

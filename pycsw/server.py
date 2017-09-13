@@ -385,6 +385,7 @@ class Csw(object):
                 LOGGER.debug('Custom repository %s loaded (%s)', rs, self.repository.dbtype)
             except Exception as err:
                 msg = 'Could not load custom repository %s: %s' % (rs, err)
+                print(msg)
                 LOGGER.exception(msg)
                 error = 1
                 code = 'NoApplicableCode'
@@ -407,6 +408,7 @@ class Csw(object):
                     'Repository loaded (local): %s.' % self.repository.dbtype)
             except Exception as err:
                 msg = 'Could not load repository (local): %s' % err
+                print(msg)
                 LOGGER.exception(msg)
                 error = 1
                 code = 'NoApplicableCode'
